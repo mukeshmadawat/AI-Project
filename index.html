@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Maze Solver</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(-45deg, #0a0e27, #1a1f4a, #0d1117, #1a1f3a);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 40px;
+            background: rgba(26, 31, 58, 0.8);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            z-index: 100;
+        }
+        
+        .logo {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+            display: inline-block;
+        }
+        
+        .tagline {
+            font-size: 14px;
+            color: #b0b0b0;
+            margin-top: 5px;
+        }
+        
+        .settings-btn {
+            position: fixed;
+            right: 40px;
+            top: 30px;
+            background: rgba(0, 212, 255, 0.15);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            padding: 12px 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: #00d4ff;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            z-index: 150;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .settings-btn:hover {
+            background: rgba(0, 212, 255, 0.25);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            padding: 100px 20px 20px;
+            gap: 20px;
+        }
+        .left-panel {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+        
+        .algo-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .algo-card {
+            background: rgba(26, 31, 58, 0.6);
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px 15px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            text-align: center;
+        }
+        
+        .algo-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .algo-card.selected {
+            border-color: var(--card-color);
+            box-shadow: 0 0 30px var(--card-glow);
+            background: rgba(26, 31, 58, 0.9);
+        }
+        
+        .algo-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        .algo-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+        
+        .algo-desc {
+            font-size: 11px;
+            color: #b0b0b0;
+            line-height: 1.3;
+        }
+        .center-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(26, 31, 58, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .center-panel::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #00d4ff, #00ff88, #ff00ff, #ffaa00);
+            border-radius: 20px;
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .center-panel:hover::before {
+            opacity: 0.1;
+        }
+        .right-panel {
+            width: 250px;
+            background: rgba(26, 31, 58, 0.6);
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #00d4ff;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .control-group {
+            background: rgba(13, 17, 23, 0.5);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(26, 31, 58, 0.8);
+            color: #fff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        select:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #00d4ff 0%, #00b8d4 100%);
+            color: #0a0e27;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.6);
+        }
+        
+        button:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        button.secondary {
+            background: rgba(51, 51, 51, 0.8);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        button.secondary:hover {
+            background: rgba(68, 68, 68, 0.9);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
+        }
+        
+        button.compare-all {
+            background: linear-gradient(135deg, #ff00ff 0%, #ff66ff 100%);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 16px;
+            box-shadow: 0 6px 20px rgba(255, 0, 255, 0.5);
+            border: 2px solid rgba(255, 0, 255, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        button.compare-all:hover {
+            background: linear-gradient(135deg, #ff33ff 0%, #ff88ff 100%);
+            box-shadow: 0 10px 30px rgba(255, 0, 255, 0.7);
+            transform: translateY(-3px);
+        }
+        .stat {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(13, 17, 23, 0.5);
+            border-radius: 12px;
+            border-left: 4px solid #00d4ff;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00d4ff;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(51, 51, 51, 0.5);
+            outline: none;
+            border-radius: 8px;
+            height: 8px;
+            width: 100%;
+            margin: 15px 0;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+            transition: all 0.3s ease;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 1);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+        }
+        .fps-counter {
+            position: absolute;
+            top: 110px;
+            right: 40px;
+            background: rgba(26, 31, 58, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        .effects-toggle {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(13, 17, 23, 0.5);
+            border-radius: 12px;
+        }
+        
+        .toggle-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .toggle-item label {
+            font-size: 13px;
+            color: #b0b0b0;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #333;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .toggle-switch.active {
+            background: #00d4ff;
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: white;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s ease;
+        }
+        
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+        
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .settings-modal.active {
+            display: flex;
+        }
+        
+        .settings-content {
+            background: rgba(26, 31, 58, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+        }
+        
+        .settings-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid rgba(255, 68, 68, 0.4);
+            color: #ff4444;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            padding: 0;
+        }
+        
+        .settings-close:hover {
+            background: rgba(255, 68, 68, 0.4);
+            transform: rotate(90deg);
+        }
+        
+        .settings-section {
+            margin-bottom: 25px;
+        }
+        
+        .settings-section h4 {
+            font-size: 14px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .quality-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .quality-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(51, 51, 51, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+        }
+        
+        .quality-btn.active {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .quality-btn:hover {
+            background: rgba(68, 68, 68, 0.6);
+        }
+        
+        .speed-value {
+            text-align: center;
+            margin-top: 10px;
+            color: #00d4ff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .compare-grid {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 16px;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        .compare-grid.active {
+            display: grid;
+        }
+        
+        .back-button {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: linear-gradient(135deg, #00d4ff 0%, #00b8d4 100%);
+            color: #0a0e27;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 6px 25px rgba(0, 212, 255, 0.6);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .back-button:hover {
+            transform: translateX(-50%) translateY(-3px);
+            box-shadow: 0 10px 35px rgba(0, 212, 255, 0.8);
+        }
+        
+        .back-button.hidden {
+            display: none;
+        }
+        
+        .compare-item {
+            background: rgba(13, 17, 23, 0.5);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .compare-header {
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
+        }
+        
+        .compare-canvas {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            cursor: grab;
+        }
+        
+        .compare-canvas:active {
+            cursor: grabbing;
+        }
+        
+        .compare-canvas canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+        
+        .fps-monitor {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+            border-radius: 4px;
+            pointer-events: none;
+            display: none;
+        }
+        
+        .fps-monitor.active {
+            display: block;
+        }
+        
+        .compare-stats {
+            padding: 10px;
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-around;
+            flex-shrink: 0;
+        }
+        
+        .single-view {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .single-view.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="logo">MAZE PRO</h1>
+        <p class="tagline">Advanced Pathfinding Visualizer</p>
+        <button class="settings-btn" onclick="toggleSettings()" title="Settings">⚙️</button>
+    </div>
+    
+    <div class="fps-counter" id="fpsCounter" style="display: none;">FPS: 60</div>
+    
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+            <button class="settings-close" onclick="toggleSettings()">×</button>
+            <h2 style="margin-bottom: 25px; color: #00d4ff;">⚙️ Settings</h2>
+            
+            <div class="settings-section">
+                <h4>🎨 Visual Effects</h4>
+                <div class="effects-toggle">
+                    <div class="toggle-item">
+                        <label>Particles</label>
+                        <div class="toggle-switch active" id="particlesToggle" onclick="toggleEffect('particles', this)"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label>Shadows</label>
+                        <div class="toggle-switch" id="shadowsToggle" onclick="toggleEffect('shadows', this)"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label>Bloom (Disabled for clarity)</label>
+                        <div class="toggle-switch" id="bloomToggle" onclick="toggleEffect('bloom', this)"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label>Grid Lines</label>
+                        <div class="toggle-switch active" id="gridToggle" onclick="toggleEffect('grid', this)"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>⚡ Quality</h4>
+                <div class="quality-buttons">
+                    <button class="quality-btn" onclick="setQuality('low')">Low</button>
+                    <button class="quality-btn" onclick="setQuality('medium')">Medium</button>
+                    <button class="quality-btn active" onclick="setQuality('high')">High</button>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>📈 Performance</h4>
+                <div class="toggle-item">
+                    <label>FPS Monitor</label>
+                    <div class="toggle-switch" id="fpsToggle" onclick="toggleEffect('fps', this)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="left-panel">
+            <div>
+                <h3>Select Algorithm</h3>
+                <div class="algo-cards">
+                    <div class="algo-card selected" style="--card-color: #00d4ff; --card-glow: rgba(0, 212, 255, 0.4);" onclick="selectAlgorithmCard('BFS', this)">
+                        <div class="algo-icon">🌊</div>
+                        <div class="algo-name">BFS</div>
+                        <div class="algo-desc">Breadth-First Search</div>
+                    </div>
+                    <div class="algo-card" style="--card-color: #ff00ff; --card-glow: rgba(255, 0, 255, 0.4);" onclick="selectAlgorithmCard('DFS', this)">
+                        <div class="algo-icon">⬇️</div>
+                        <div class="algo-name">DFS</div>
+                        <div class="algo-desc">Depth-First Search</div>
+                    </div>
+                    <div class="algo-card" style="--card-color: #00ff88; --card-glow: rgba(0, 255, 136, 0.4);" onclick="selectAlgorithmCard('A*', this)">
+                        <div class="algo-icon">⭐</div>
+                        <div class="algo-name">A*</div>
+                        <div class="algo-desc">Optimal Pathfinding</div>
+                    </div>
+                    <div class="algo-card" style="--card-color: #ffaa00; --card-glow: rgba(255, 170, 0, 0.4);" onclick="selectAlgorithmCard('GREEDY', this)">
+                        <div class="algo-icon">🚀</div>
+                        <div class="algo-name">Greedy</div>
+                        <div class="algo-desc">Fast Heuristic</div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <h3>Difficulty</h3>
+                <select id="difficultySelect" onchange="changeDifficulty(this.value)">
+                    <option value="10">Easy (10x10)</option>
+                    <option value="20" selected>Medium (20x20)</option>
+                    <option value="30">Hard (30x30)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <h3>Animation Speed</h3>
+                <input type="range" id="speedSlider" min="0" max="500" value="150" step="10" oninput="updateSpeedValue(this.value)">
+                <div class="speed-value" id="speedValue">150ms</div>
+            </div>
+            <button onclick="solveMaze()">🚀 SOLVE MAZE</button>
+            <button class="compare-all" onclick="compareAll()" title="Run all 4 algorithms side-by-side to compare their performance">⚡ COMPARE ALL ALGORITHMS</button>
+            <button class="secondary" onclick="resetVisualization()">🔄 RESET</button>
+            <button class="secondary" onclick="generateNewMaze()">🎲 NEW MAZE</button>
+        </div>
+        <div class="center-panel">
+            <div class="single-view" id="singleView"></div>
+            <div class="compare-grid" id="compareGrid">
+                <div class="compare-item">
+                    <div class="compare-header" style="background: rgba(0, 212, 255, 0.2); color: #00d4ff;">🌊 BFS</div>
+                    <div class="compare-canvas" id="bfsCanvas">
+                        <div class="fps-monitor" id="fpsBfs">FPS: 60</div>
+                    </div>
+                    <div class="compare-stats" id="bfsStats">
+                        <span>Nodes: <strong>0</strong></span>
+                        <span>Path: <strong>0</strong></span>
+                        <span>Time: <strong>0ms</strong></span>
+                    </div>
+                </div>
+                <div class="compare-item">
+                    <div class="compare-header" style="background: rgba(255, 0, 255, 0.2); color: #ff00ff;">⬇️ DFS</div>
+                    <div class="compare-canvas" id="dfsCanvas">
+                        <div class="fps-monitor" id="fpsDfs">FPS: 60</div>
+                    </div>
+                    <div class="compare-stats" id="dfsStats">
+                        <span>Nodes: <strong>0</strong></span>
+                        <span>Path: <strong>0</strong></span>
+                        <span>Time: <strong>0ms</strong></span>
+                    </div>
+                </div>
+                <div class="compare-item">
+                    <div class="compare-header" style="background: rgba(0, 255, 136, 0.2); color: #00ff88;">⭐ A*</div>
+                    <div class="compare-canvas" id="astarCanvas">
+                        <div class="fps-monitor" id="fpsAstar">FPS: 60</div>
+                    </div>
+                    <div class="compare-stats" id="astarStats">
+                        <span>Nodes: <strong>0</strong></span>
+                        <span>Path: <strong>0</strong></span>
+                        <span>Time: <strong>0ms</strong></span>
+                    </div>
+                </div>
+                <div class="compare-item">
+                    <div class="compare-header" style="background: rgba(255, 170, 0, 0.2); color: #ffaa00;">🚀 Greedy</div>
+                    <div class="compare-canvas" id="greedyCanvas">
+                        <div class="fps-monitor" id="fpsGreedy">FPS: 60</div>
+                    </div>
+                    <div class="compare-stats" id="greedyStats">
+                        <span>Nodes: <strong>0</strong></span>
+                        <span>Path: <strong>0</strong></span>
+                        <span>Time: <strong>0ms</strong></span>
+                    </div>
+                </div>
+            </div>
+            <button class="back-button hidden" id="backButton" onclick="compareAll()">← BACK TO SINGLE MODE</button>
+        </div>
+        <div class="right-panel">
+            <h3>📊 Statistics</h3>
+            <div class="stat">
+                <div class="stat-label">Nodes Explored</div>
+                <div class="stat-value" id="statNodes">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Path Length</div>
+                <div class="stat-value" id="statPath">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Time (ms)</div>
+                <div class="stat-value" id="statTime">0</div>
+            </div>
+            
+
+        </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
